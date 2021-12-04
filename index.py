@@ -322,111 +322,8 @@ def printSreen():
         # Grab the data
         return sct_img[:,:,:3]
 
-def positions(target, threshold=ct['default']):
-    img = printSreen()
-    result = cv2.matchTemplate(img,target,cv2.TM_CCOEFF_NORMED)
-    w = target.shape[1]
-    h = target.shape[0]
 
-    yloc, xloc = np.where(result >= threshold)
-
-
-    rectangles = []
-    for (x, y) in zip(xloc, yloc):
-        rectangles.append([int(x), int(y), int(w), int(h)])
-        rectangles.append([int(x), int(y), int(w), int(h)])
-
-    rectangles, weights = cv2.groupRectangles(rectangles, 1, 0.2)
-    return rectangles
-
-def scroll():
-
-    commoms = positions(commom_img, threshold = ct['commom'])
-    if (len(commoms) == 0):
-        return
-    x,y,w,h = commoms[len(commoms)-1]
-#
-    pyautogui.moveTo(x,y,1)
-
-    if not c['use_click_and_drag_instead_of_scroll']:
-        pyautogui.scroll(-c['scroll_size'])
-    else:
-        pyautogui.dragRel(0,-c['click_and_drag_amount'],duration=1, button='left')
-
-
-def clickButtons():
-    buttons = positions(go_work_img, threshold=ct['go_to_work_btn'])
-    for (x, y, w, h) in buttons:
-        pyautogui.moveTo(x+(w/2),y+(h/2),1)
-        pyautogui.click()
-        global hero_clicks
-        hero_clicks = hero_clicks + 1
-        #cv2.rectangle(sct_img, (x, y) , (x + w, y + h), (0,255,255),2)
-        if hero_clicks > 20:
-            logger('too many hero clicks, try to increase the go_to_work_btn threshold')
-            return
-    return len(buttons)
-
-def isWorking(bar, buttons):
-    y = bar[1]
-
-    for (_,button_y,_,button_h) in buttons:
-        isBelow = y < (button_y + button_h)
-        isAbove = y > (button_y - button_h)
-        if isBelow and isAbove:
-            return False
-    return True
-
-def clickGreenBarButtons():
-    # ele clicka nos q tao trabaiano mas axo q n importa
-    offset = 130
-    green_bars = positions(green_bar, threshold=ct['green_bar'])
-    logger('%d green bars detected' % len(green_bars))
-    buttons = positions(go_work_img, threshold=ct['go_to_work_btn'])
-    logger('%d buttons detected' % len(buttons))
-
-    not_working_green_bars = []
-    for bar in green_bars:
-        if not isWorking(bar, buttons):
-            not_working_green_bars.append(bar)
-    if len(not_working_green_bars) > 0:
-        logger('%d buttons with green bar detected' % len(not_working_green_bars))
-        logger('Clicking in %d heroes.' % len(not_working_green_bars))
-
-    # se tiver botao com y maior que bar y-10 e menor que y+10
-    for (x, y, w, h) in not_working_green_bars:
-        # isWorking(y, buttons)
-        pyautogui.moveTo(x+offset+(w/2),y+(h/2),1)
-        pyautogui.click()
-        global hero_clicks
-        hero_clicks = hero_clicks + 1
-        if hero_clicks > 20:
-            logger('too many hero clicks, try to increase the go_to_work_btn threshold')
-            return
-        #cv2.rectangle(sct_img, (x, y) , (x + w, y + h), (0,255,255),2)
-    return len(not_working_green_bars)
-
-def clickFullBarButtons():
-    offset = 100
-    full_bars = positions(full_stamina, threshold=ct['default'])
-    buttons = positions(go_work_img, threshold=ct['go_to_work_btn'])
-
-    not_working_full_bars = []
-    for bar in full_bars:
-        if not isWorking(bar, buttons):
-            not_working_full_bars.append(bar)
-
-    if len(not_working_full_bars) > 0:
-        logger('Clicking in %d heroes.' % len(not_working_full_bars))
-
-    for (x, y, w, h) in not_working_full_bars:
-        pyautogui.moveTo(x+offset+(w/2),y+(h/2),1)
-        pyautogui.click()
-        global hero_clicks
-        hero_clicks = hero_clicks + 1
-
-    return len(not_working_full_bars)
-
+ 
 def goToHeroes():
     if clickBtn(arrow_img):
         global login_attempts
@@ -507,34 +404,6 @@ def login():
 
 
 
-def refreshHeroes():
-    goToHeroes()
-
-    if c['select_heroes_mode'] == "full":
-        logger("Sending heroes with full stamina bar to work!")
-    elif c['select_heroes_mode'] == "green":
-        logger("Sending heroes with green stamina bar to work!")
-    else:
-        logger("Sending all heroes to work!")
-
-    buttonsClicked = 1
-    empty_scrolls_attempts = c['scroll_attemps']
-
-    while(empty_scrolls_attempts >0):
-        if c['select_heroes_mode'] == 'full':
-            buttonsClicked = clickFullBarButtons()
-        elif c['select_heroes_mode'] == 'green':
-            buttonsClicked = clickGreenBarButtons()
-        else:
-            buttonsClicked = clickButtons()
-
-        if buttonsClicked == 0:
-            empty_scrolls_attempts = empty_scrolls_attempts - 1
-        scroll()
-        time.sleep(2)
-    logger('{} heroes sent to work so far'.format(hero_clicks))
-    goToGame()
-
 
 
 
@@ -557,11 +426,6 @@ def main():
             last["check_for_capcha"] = now
             logger('Checking for capcha.')
             solveCapcha()
-
-        if now - last["heroes"] > t['send_heroes_for_work'] * 60:
-            last["heroes"] = now
-            logger('Sending heroes to work.')
-            refreshHeroes()
 
         if now - last["login"] > t['check_for_login'] * 60:
             logger("Checking if game has disconnected.")
